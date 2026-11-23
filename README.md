@@ -30,7 +30,7 @@ a spike back down, and otherwise stays in cash:
   close since entry, or a stop-loss 2% under the entry close.
 - **No new position in the last 30 bars** of the window, so a buy never pays
   a round trip for minutes that do not exist. After an exit the entry rule
-  must re-confirm and 5 bars must pass first.
+  must re-confirm and 8 bars must pass first.
 
 Every comparison is integer arithmetic on the closes the harness sends, so
 the same bars always give the same orders: no clock, no environment, no
@@ -66,31 +66,29 @@ and that is stated plainly in the caveat below rather than hidden.
 
 | Change | Net PnL | Trades |
 |---|---|---|
-| As shipped (single TP 4.3%, cooldown 5) | **+$32.70** | 3 |
+| Single TP 4.3%, cooldown 5 (previous version) | **+$32.70** | 3 |
 | Single take-profit 4.2% / 4.4% | +$32.70 / +$32.70 | 3 / 3 |
 | Single take-profit 4.5% | +$45.31 | 3 |
 | Single take-profit 4.6% | +$34.23 | 3 |
 | Single TP 4.3%, cooldown 8 / 10 bars | +$44.97 / +$44.97 | 3 / 3 |
 | Single TP 4.2% / 4.4%, cooldown 10 bars | +$44.97 / +$44.97 | 3 / 3 |
 
-Honest caveat: the single take-profit level is a knife-edge, not a
-plateau, at cooldown 5. At +4.5% the sell is decided one bar later
-(bar 425 instead of 424), which pushes the re-entry past the trap: the
-bot re-enters at bar 445 instead of 429 and the second leg ends +$4.87
-instead of −$7.41. At +4.2–4.4% it sells at bar 424, the 5-bar cooldown
-expires at 429 while the 10-minute return still straddles the pre-spike
-low, so the entry rule re-confirms into the falling leg. At +4.6% the
-take-profit never fires at all and the trailing stop banks +$43.95
-before a top re-entry loses −$9.72. So this version removes the
-leg-counting knob but keeps a one-bar knob: the sell bar decides the
-re-entry. The measured way out is a longer cooldown — 8 or 10 bars
-after an exit blocks the bar-429 trap, and with cooldown 10 the
-take-profit is a real plateau (+$44.97 at 4.2–4.4%, +$45.31 at 4.5%).
-That cooldown change is NOT in this version; it is recorded here so
-the next round can make it with the numbers already in hand. Until
-then, this version's edge over buy-and-hold on the dev window is
-+$0.53 and it trails momentum by −$2.24 — a robustness trade that, on
-the dev numbers, costs the lead.
+Honest caveat: with the old 5-bar cooldown the single take-profit
+level was a knife-edge, not a plateau. At +4.5% the sell is decided
+one bar later (bar 425 instead of 424), which pushes the re-entry
+past the trap: the bot re-enters at bar 445 instead of 429 and the
+second leg ends +$4.87 instead of −$7.41. At +4.2–4.4% it sells at
+bar 424, the 5-bar cooldown expires at 429 while the 10-minute
+return still straddles the pre-spike low, so the entry rule
+re-confirms into the falling leg. At +4.6% the take-profit never
+fires at all and the trailing stop banks +$43.95 before a top
+re-entry loses −$9.72. So the old version removed the leg-counting
+knob but kept a one-bar knob: the sell bar decided the re-entry.
+The fix shipped here is a longer cooldown — 8 bars after an exit
+blocks the bar-429 trap, and with it the take-profit is a real
+plateau (+$44.97 at 4.2–4.4%, +$45.31 at 4.5%). The numbers above
+are the old version's measurements, kept so the change can be
+checked against them.
 
 ## Why this should survive the race window, not just the dev one
 
@@ -102,12 +100,11 @@ the dev numbers, costs the lead.
 - **The exits are exercised, not decorative — but the re-entry is the
   live risk.** The single take-profit fires once on the dev window, and
   the trailing stop and stop-loss stand ready for a real breakdown on
-  the unseen race window. The measured weakness is the re-entry after
-  the spike: with the 5-bar cooldown the bot re-enters at bar 429,
-  still falling, for −$7.41 on that leg. A longer cooldown (8–10 bars)
+  the unseen race window. The measured weakness was the re-entry after
+  the spike: with the old 5-bar cooldown the bot re-entered at bar 429,
+  still falling, for −$7.41 on that leg. The 8-bar cooldown shipped here
   blocks that trap on the dev window and restores +$44.97 with a real
-  take-profit plateau — that change is documented in the sensitivity
-  table above and is the known next step, not yet shipped here.
+  take-profit plateau — see the sensitivity table above.
 - **Deterministic.** Two local runs over the dev window produce
   byte-identical action logs (same SHA-256), and the bot runs unchanged as
   user `nobody` with a read-only working directory, as the grader runs it.

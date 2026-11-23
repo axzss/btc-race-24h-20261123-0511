@@ -23,9 +23,10 @@ window: 4.5% alone banks +$45.31, while 4.2-4.4% sell one bar earlier
 into the spike and let the bot re-enter at bar 429 into the falling
 leg, for +$32.70, and 4.6% never fires (+$34.23). The sell bar decides
 the re-entry, so the level is not a plateau by itself. After an exit
-the entry rule must re-confirm and 5 bars must pass first, so a
-whipsaw cannot re-enter on the same noise that stopped it out, but
-the wait is short enough to catch the next leg.
+the entry rule must re-confirm and 8 bars must pass first, so a sell
+decided one bar earlier cannot send the bot straight back into the
+leg it just left: the wait is long enough for the falling leg to
+pass, yet short enough to catch the next one.
 No new position is opened in the last 30 bars of the window, so a buy
 never pays a round trip for minutes that do not exist.
 
@@ -66,7 +67,7 @@ STOP_NUM = 98
 STOP_DEN = 100
 
 # --- pacing ---------------------------------------------------------------
-COOLDOWN_BARS = 5        # bars to wait after an exit before re-entering
+COOLDOWN_BARS = 8        # bars to sit out after an exit before re-entering
 NO_ENTRY_LAST_BARS = 30  # no new position in the window's last 30 bars
 WINDOW_BARS = 1440       # one-minute bars per window, per the competition rules
 MAX_SLIPPAGE_BPS = 150   # 1.5% past the close the order was decided on
