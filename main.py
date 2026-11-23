@@ -13,14 +13,19 @@ short-horizon readings agree: the close has risen over the last
 10 minutes *and* it sits above its own 10-bar average, so the move is
 both up and above the recent mean rather than a bounce from below it.
 The bot then buys with the whole cash balance. It sells when the gain
-since entry reaches the take-profit -- 4.5% on the first leg, which is
-where the window's big move is banked instead of ridden back down, and
-1.5% on later legs, which scalp the smaller legs a maturing trend
-still offers -- or sooner on a real breakdown: a trailing stop 2%
-under the best close since entry, or a stop-loss 2% under the entry
-close. After an exit the entry rule must re-confirm and 5 bars must
-pass first, so a whipsaw cannot re-enter on the same noise that
-stopped it out, but the wait is short enough to catch the next leg.
+since entry reaches the take-profit -- one level, 4.3% over the entry
+close, the same on every leg -- or sooner on a real breakdown: a
+trailing stop 2% under the best close since entry, or a stop-loss 2%
+under the entry close. One take-profit level was tried deliberately
+over a tiered one, to remove the leg-counting knob -- but measured
+honestly, the single level on its own is still a narrow knob on this
+window: 4.5% alone banks +$45.31, while 4.2-4.4% sell one bar earlier
+into the spike and let the bot re-enter at bar 429 into the falling
+leg, for +$32.70, and 4.6% never fires (+$34.23). The sell bar decides
+the re-entry, so the level is not a plateau by itself. After an exit
+the entry rule must re-confirm and 5 bars must pass first, so a
+whipsaw cannot re-enter on the same noise that stopped it out, but
+the wait is short enough to catch the next leg.
 No new position is opened in the last 30 bars of the window, so a buy
 never pays a round trip for minutes that do not exist.
 
@@ -47,12 +52,12 @@ ENTRY_WINDOW = 10         # bars of history the entry readings need
 # Close above its 10-bar mean: 10 * close[-1] > sum of the last 10 closes.
 
 # --- exits: bank the gain, or get out on a real breakdown -----------------
-# Take-profit, first leg: 4.5% over the entry close.
-TP_FIRST_NUM = 1045       # 1000 * close >= 1045 * entry_close
-TP_FIRST_DEN = 1000
-# Take-profit, later legs: 1.5% over the entry close.
-TP_LATER_NUM = 1015       # 1000 * close >= 1015 * entry_close
-TP_LATER_DEN = 1000
+# Take-profit: 4.3% over the entry close, on every leg alike. One level,
+# so no leg has a special tier and no counter has to track which leg
+# this is. Measured on the dev window this level alone is still a
+# narrow knob (see the module docstring), not a plateau by itself.
+TP_NUM = 1043            # 1000 * close >= 1043 * entry_close
+TP_DEN = 1000
 # Trailing stop: 2% under the highest close since entry.
 TRAIL_NUM = 98            # 100 * close < 98 * peak
 TRAIL_DEN = 100
@@ -74,18 +79,10 @@ class TrendRider:
         self.closes = []        # closes of CBBTC, in batch order
         self.peak = None        # highest close since the current entry
         self.entry_close = None
-        self.legs = 0           # completed legs: 0 until the first exit fills
-        self.was_holding = False  # position open on the previous batch
         self.last_exit_seq = -10 ** 9
 
     def note_bar(self, bar):
         self.closes.append(int(bar["c"]))
-
-    def _take_profit_num_den(self):
-        """First leg banks a big gain; later legs scalp smaller ones."""
-        if self.legs == 0:
-            return TP_FIRST_NUM, TP_FIRST_DEN
-        return TP_LATER_NUM, TP_LATER_DEN
 
     def _entry_confirmed(self):
         """Both short-horizon readings agree the trend is up."""
@@ -108,8 +105,7 @@ class TrendRider:
             return "trailing-stop"
         if STOP_DEN * close < STOP_NUM * self.entry_close:
             return "stop-loss"
-        tp_num, tp_den = self._take_profit_num_den()
-        if tp_den * close >= tp_num * self.entry_close:
+        if TP_DEN * close >= TP_NUM * self.entry_close:
             return "take-profit"
         return None
 
@@ -124,7 +120,6 @@ class TrendRider:
 
         held = state.positions.get(SYMBOL)
         if held is not None and held.qty > 0:
-            self.was_holding = True
             close = self.closes[-1]
             if self.peak is None or close > self.peak:
                 self.peak = close
@@ -134,19 +129,13 @@ class TrendRider:
                 # Do not reset peak/entry here: if this sell is rejected
                 # (slippage, no bar) the position is still open next batch
                 # and the trailing stop must still be measured from the
-                # true peak, not from wherever the retry happens. The leg
-                # counter below only advances once the sell has filled,
-                # so a rejected sell cannot switch the take-profit tier.
+                # true peak, not from wherever the retry happens.
                 self.last_exit_seq = state.seq
                 return [{"side": "sell", "symbol": SYMBOL, "qty": held.qty,
                          "max_slippage_bps": MAX_SLIPPAGE_BPS}]
             return []
 
         # Flat: the previous trade is really over, so its memory goes now.
-        # A leg counts only here, when the position is actually gone.
-        if self.was_holding and self.entry_close is not None:
-            self.legs += 1
-        self.was_holding = False
         self.peak = None
         self.entry_close = None
 

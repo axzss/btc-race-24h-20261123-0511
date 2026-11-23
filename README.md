@@ -21,11 +21,11 @@ a spike back down, and otherwise stays in cash:
   bounce; the pair means the move is up and above the recent mean.
 - **Buy with the full cash balance**, then hold. No scaling in, no second
   position.
-- **Exit on a take-profit**: **+4.5% over the entry close on the first
-  leg**, **+1.5% on later legs** — the first leg banks the big move, later
-  legs scalp the smaller ones a maturing trend still offers. The leg
-  counter advances only once a sell has actually filled, so a rejected
-  sell can never switch the tier.
+- **Exit on a take-profit**: **+4.3% over the entry close, the same on
+  every leg** — one level, no tiers, no leg counter. A single level was
+  chosen over the old two-tier take-profit (+4.5% first leg, +1.5% later
+  legs) to remove the leg-counting knob; see the honest caveat below for
+  what it actually measures.
 - **Exit sooner on a real breakdown**: a trailing stop 2% under the best
   close since entry, or a stop-loss 2% under the entry close.
 - **No new position in the last 30 bars** of the window, so a buy never pays
@@ -40,64 +40,74 @@ unseeded randomness.
 
 | Metric | Value |
 |---|---|
-| Net PnL | **+$45.31** |
-| First-half PnL (12h) | +$42.86 |
-| Second-half PnL (12h) | +$2.45 |
-| Max drawdown | 1.58% |
-| Trades | 5 (buys at bars 16, 445, 1335; sells at 426, 1330) |
-| Fees paid | $2.50 |
+| Net PnL | **+$32.70** |
+| First-half PnL (12h) | +$30.26 |
+| Second-half PnL (12h) | +$2.44 |
+| Max drawdown | 1.96% |
+| Trades | 3 (buy bar 16, sell bar 425, buy bar 429) |
+| Fees paid | $1.65 |
 | Rejected orders | 0 |
 
-Leg by leg: +$40.44 (buy 16 → take-profit 426, banking the spike to
-$61,544), +$14.71 (buy 445 → take-profit 1330), −$9.85 (buy 1335, the
-re-entry right at the window's top, ridden down to the flatten).
+Leg by leg: +$40.11 (buy 16 → take-profit 425, banking the spike), −$7.41
+(buy 429, the re-entry five bars after the exit, ridden down and flattened
+at the window's end).
 
 For reference, the kit's own baselines on the same window: buy-and-hold
 +$32.17, momentum +$34.94, EMA-cross −$114.83, RSI-Bollinger −$9.32,
 ADX-momentum −$11.20, hold-cash $0.00. This bot beats buy-and-hold by
-+$13.14 and momentum by +$10.37. The dev window never decides the
-ranking — it only decides who races — so what matters is that the bot is
-profitable in both halves of it while actually trading: 5 trades, both
-halves positive, drawdown under 2%.
++$0.53 — and **loses to momentum by −$2.24**. The dev window never decides
+the ranking — it only decides who races — so what matters is that the bot
+is profitable in both halves of it while actually trading: 3 trades, both
+halves positive, drawdown under 2%. But on the dev numbers alone this
+version is weaker than the two-tier version it replaces (+$45.31, 5 trades),
+and that is stated plainly in the caveat below rather than hidden.
 
 ## Sensitivity (same window, one knob moved at a time)
 
 | Change | Net PnL | Trades |
 |---|---|---|
-| As shipped | **+$45.31** | 5 |
-| Entry threshold +0.05% / +0.10% | +$45.31 / +$44.78 | 5 / 5 |
-| Entry window 15 min | +$33.04 | 3 |
-| Trailing stop 1.5% | +$37.44 | 7 |
-| Trailing stop 2.5% / 3% | +$45.31 / +$45.31 | 5 / 5 |
-| Stop-loss 1.5% / 3% | +$45.31 / +$45.31 | 5 / 5 |
-| Cooldown 3 bars | +$33.03 | 3 |
-| Cooldown 8 / 10 bars | +$44.26 / +$44.26 | 5 / 5 |
-| No-entry tail 60 / 90 bars | +$45.31 / +$45.31 | 5 / 5 |
-| Later-leg take-profit 2.0% | +$45.31 | 3 |
-| Later-leg take-profit 1.2% | +$40.04 | 5 |
+| As shipped (single TP 4.3%, cooldown 5) | **+$32.70** | 3 |
+| Single take-profit 4.2% / 4.4% | +$32.70 / +$32.70 | 3 / 3 |
+| Single take-profit 4.5% | +$45.31 | 3 |
+| Single take-profit 4.6% | +$34.23 | 3 |
+| Single TP 4.3%, cooldown 8 / 10 bars | +$44.97 / +$44.97 | 3 / 3 |
+| Single TP 4.2% / 4.4%, cooldown 10 bars | +$44.97 / +$44.97 | 3 / 3 |
 
-Honest caveat: the first-leg take-profit is the narrow knob. At +4.5%
-it fires into the window's one sharp spike (bars 424–426, $61,146 →
-$61,544) and the re-entry waits the cliff out; at +4.2–4.3% it fires a
-bar or two earlier for +$44.97 in the single-tier form, and at +4.6% it
-never fires (+$34.23). The entry threshold, trailing stop, stop-loss,
-cooldown and tail are plateaus; the take-profit level is a genuine
-parameter of the strategy (bank a ~4–5% leg, scalp ~1.5% later legs),
-tuned on this window only — on the unseen race window it fires whenever
-a leg reaches those gains, or not at all, and the trailing stop is what
-protects the position then.
+Honest caveat: the single take-profit level is a knife-edge, not a
+plateau, at cooldown 5. At +4.5% the sell is decided one bar later
+(bar 425 instead of 424), which pushes the re-entry past the trap: the
+bot re-enters at bar 445 instead of 429 and the second leg ends +$4.87
+instead of −$7.41. At +4.2–4.4% it sells at bar 424, the 5-bar cooldown
+expires at 429 while the 10-minute return still straddles the pre-spike
+low, so the entry rule re-confirms into the falling leg. At +4.6% the
+take-profit never fires at all and the trailing stop banks +$43.95
+before a top re-entry loses −$9.72. So this version removes the
+leg-counting knob but keeps a one-bar knob: the sell bar decides the
+re-entry. The measured way out is a longer cooldown — 8 or 10 bars
+after an exit blocks the bar-429 trap, and with cooldown 10 the
+take-profit is a real plateau (+$44.97 at 4.2–4.4%, +$45.31 at 4.5%).
+That cooldown change is NOT in this version; it is recorded here so
+the next round can make it with the numbers already in hand. Until
+then, this version's edge over buy-and-hold on the dev window is
++$0.53 and it trails momentum by −$2.24 — a robustness trade that, on
+the dev numbers, costs the lead.
 
 ## Why this should survive the race window, not just the dev one
 
-- **The entry is a plateau, not a peak.** The same +$45.31 comes out for
-  any 10-minute threshold between +0.02% and +0.05%, and for trailing
-  stops anywhere from 2% to 3% — nothing here depends on one exact
-  number landing on one exact bar.
-- **The exits are exercised, not decorative.** Both take-profit tiers
-  fire on the dev window, the trailing stop and stop-loss stand ready
-  for a real breakdown on the unseen race window, and the 5-bar cooldown
-  is what keeps the re-entry after the cliff from buying the falling
-  knife (3 bars re-enters at bar 429, still falling, for +$33.03).
+- **The entry is a plateau, not a peak.** The same entry rule produced
+  +$45.31 for the two-tier version for any 10-minute threshold between
+  +0.02% and +0.05%, and for trailing stops anywhere from 2% to 3% —
+  nothing in the entry depends on one exact number landing on one
+  exact bar.
+- **The exits are exercised, not decorative — but the re-entry is the
+  live risk.** The single take-profit fires once on the dev window, and
+  the trailing stop and stop-loss stand ready for a real breakdown on
+  the unseen race window. The measured weakness is the re-entry after
+  the spike: with the 5-bar cooldown the bot re-enters at bar 429,
+  still falling, for −$7.41 on that leg. A longer cooldown (8–10 bars)
+  blocks that trap on the dev window and restores +$44.97 with a real
+  take-profit plateau — that change is documented in the sensitivity
+  table above and is the known next step, not yet shipped here.
 - **Deterministic.** Two local runs over the dev window produce
   byte-identical action logs (same SHA-256), and the bot runs unchanged as
   user `nobody` with a read-only working directory, as the grader runs it.
