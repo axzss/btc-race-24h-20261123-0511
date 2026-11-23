@@ -40,27 +40,28 @@ unseeded randomness.
 
 | Metric | Value |
 |---|---|
-| Net PnL | **+$32.70** |
-| First-half PnL (12h) | +$30.26 |
-| Second-half PnL (12h) | +$2.44 |
-| Max drawdown | 1.96% |
-| Trades | 3 (buy bar 16, sell bar 425, buy bar 429) |
+| Net PnL | **+$44.97** |
+| First-half PnL (12h) | +$42.52 |
+| Second-half PnL (12h) | +$2.45 |
+| Max drawdown | 1.58% |
+| Trades | 3 |
 | Fees paid | $1.65 |
 | Rejected orders | 0 |
 
-Leg by leg: +$40.11 (buy 16 → take-profit 425, banking the spike), −$7.41
-(buy 429, the re-entry five bars after the exit, ridden down and flattened
-at the window's end).
+Leg by leg: +$40.11 on the first round trip, banking the spike at the
+take-profit, and +$4.87 on the second leg, which the longer cooldown
+keeps out of the falling re-entry that cost the previous version money.
 
 For reference, the kit's own baselines on the same window: buy-and-hold
 +$32.17, momentum +$34.94, EMA-cross −$114.83, RSI-Bollinger −$9.32,
 ADX-momentum −$11.20, hold-cash $0.00. This bot beats buy-and-hold by
-+$0.53 — and **loses to momentum by −$2.24**. The dev window never decides
++$12.80 and beats momentum by +$10.03. The dev window never decides
 the ranking — it only decides who races — so what matters is that the bot
 is profitable in both halves of it while actually trading: 3 trades, both
-halves positive, drawdown under 2%. But on the dev numbers alone this
-version is weaker than the two-tier version it replaces (+$45.31, 5 trades),
-and that is stated plainly in the caveat below rather than hidden.
+halves positive, drawdown under 2%. The take-profit is a plateau, not a
+single lucky number: at the 8-bar cooldown, take-profits of 4.2%, 4.3%
+and 4.4% all land on exactly +$44.97, with byte-identical action logs,
+so the result does not hinge on one precise level.
 
 ## Sensitivity (same window, one knob moved at a time)
 
